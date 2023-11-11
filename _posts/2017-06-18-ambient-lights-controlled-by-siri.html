@@ -1,0 +1,92 @@
+---
+layout: post
+title: Ambient lighting controlled by Siri
+date: 2017-06-18 17:45:48.000000000 +00:00
+type: post
+parent_id: '0'
+published: true
+password: ''
+status: publish
+categories:
+- IoT
+tags:
+- ambient light
+- arduino
+- esp01
+- esp8266
+- home automation
+- HomeKit
+- iot
+- LED strip
+- MQTT
+- Siri
+- WS2812B
+meta:
+  _edit_last: '1'
+  _yoast_wpseo_content_score: '30'
+  _yoast_wpseo_primary_category: '55'
+  _publicize_twitter_user: "@CosminLazar"
+  _yoast_wpseo_focuskw_text_input: ambient light
+  _yoast_wpseo_focuskw: ambient light
+  _yoast_wpseo_linkdex: '79'
+  _yoast_wpseo_metadesc: Design of an ambient light system using Siri, HomeKit, LED
+    strip, MQTT and touch sensor
+  _wpas_done_all: '1'
+  enclosure: "https://everydaylifein.net/wp-content/uploads/2017/06/AmbientLights_demo.webm\r\n8080238\r\nvideo/webm\r\n"
+  _wpas_skip_5526398: '1'
+  _wpas_skip_5526404: '1'
+  _wpas_skip_6755022: '1'
+  _wpas_skip_7497947: '1'
+author:
+  login: admin
+  email: cosminconstantinlazar@gmail.com
+  display_name: Cosmin Lazar
+  first_name: Cosmin
+  last_name: Lazar
+permalink: "/iot/ambient-lights-controlled-by-siri.html"
+---
+<p>In this post I will walk you through the moving parts required to build an ambient light system. The light will be controlled by any of the following:</p>
+<ul>
+<li>Siri (via HomeKit) - voice activation and configuration (power state, brightness, colour)</li>
+<li>HomeKit - software activation and configuration (power state, brightness, colour)</li>
+<li>Touch sensor - hardware activation and configuration (power state, brightness)</li>
+</ul>
+<p>This is not a step-by-step guide but rather a description of the components involved and how the whole thing is put together.</p>
+<h2>Architecture</h2>
+<p>The image bellow describes the overall architecture depicting the MQTT server as the central integration point.</p>
+<p>The communication pattern is designed to adhere to the MQTT Smart Home Architecture, described <a href="https://github.com/mqtt-smarthome/mqtt-smarthome">here</a>.</p>
+<p>[caption id="attachment_435" align="aligncenter" width="300"]<a href="https://everydaylifein.net/wp-content/uploads/2017/06/LEDControllerSetup.png"><img class="wp-image-435 size-medium" src="{{ site.baseurl }}/assets/*[D*[D*[D*[D*[D*[D*[D*[D/2017/06/LEDControllerSetup-300x254.png" alt="Architecture diagram illustrating the ambient light system" width="300" height="254" /></a> Ambient lights architecture[/caption]</p>
+<h2>Hardware</h2>
+<ul>
+<li>Arduino Uno - <a href="https://rover.ebay.com/rover/1/711-53200-19255-0/1?icep_id=114&amp;ipn=icep&amp;toolid=20004&amp;campid=5338101636&amp;mpre=http%3A%2F%2Fwww.ebay.com%2Fitm%2FARDUINO-UNO-R3-ATmega328P-ATmega16U2-Development-Board-with-USB-Cable-%2F292146680691%3Fhash%3Ditem44054c9373%3Ag%3A2I4AAOSwjk9ZPG3t">buy on ebay</a></li>
+<li>ESP8266 - ESP01 - <a href="https://rover.ebay.com/rover/1/711-53200-19255-0/1?icep_id=114&amp;ipn=icep&amp;toolid=20004&amp;campid=5338101636&amp;mpre=http%3A%2F%2Fwww.ebay.com%2Fitm%2F1PCS-ESP8266-ESP-01-WIFI-Wireless-Transceiver-Send-Receive-LWIP-AP-STA-%2F171907296150%3Fhash%3Ditem2806792b96%3Ag%3AX1cAAOSwk5FUt8Sq">buy on ebay</a></li>
+<li>LM1117T 3.3v voltage regulator - <a href="https://rover.ebay.com/rover/1/711-53200-19255-0/1?icep_id=114&amp;ipn=icep&amp;toolid=20004&amp;campid=5338101636&amp;mpre=http%3A%2F%2Fwww.ebay.com%2Fitm%2F10pcs-LM1117T-3-3-LM1117T-LD1117-3-3V-TO-220-%2F280945323105%3Fhash%3Ditem4169a56c61%3Am%3AmoLoOrhCzSSIY-_tFzL-6RA">buy on ebay</a></li>
+<li>Beefy 5v power supply - <a href="https://rover.ebay.com/rover/1/711-53200-19255-0/1?icep_id=114&amp;ipn=icep&amp;toolid=20004&amp;campid=5338101636&amp;mpre=http%3A%2F%2Fwww.ebay.com%2Fitm%2FDC-5V-3A-6A-8A-10A-LED-Wall-Wart-POWER-SUPPLY-AC100-240V-Adapter-Charger-for-LED-%2F391652855380%3Fvar%3D%26hash%3Ditem5b30544e54%3Am%3AmW4oU93p83TC7ItwH7bj0zw">buy on ebay</a> - I used the 10 amps version, but you might get away with less</li>
+<li>WS2812B LED strip - <a href="https://rover.ebay.com/rover/1/711-53200-19255-0/1?icep_id=114&amp;ipn=icep&amp;toolid=20004&amp;campid=5338101636&amp;mpre=http%3A%2F%2Fwww.ebay.com%2Fitm%2FWS2812B-5050-RGB-LED-Strip-5M-150-300-Leds-144-60LED-M-Individual-Addressable-5V-%2F371432213255%3Fvar%3D%26hash%3Ditem567b15cb07%3Am%3AmtQ859zLUV_msJ6iSTwfRDg">buy on ebay</a></li>
+<li>Capacitive touch switch button - <a href="https://rover.ebay.com/rover/1/711-53200-19255-0/1?icep_id=114&amp;ipn=icep&amp;toolid=20004&amp;campid=5338101636&amp;mpre=http%3A%2F%2Fwww.ebay.com%2Fitm%2FHTTM-2-7V-6V-HTDS-SCR-Capacitive-Anti-interference-Touch-Switch-Button-Module-%2F252765441612%3Fvar%3D%26hash%3Ditem3ad9fe8e4c%3Am%3Amn7Qv1Gfk7ixyLG8kTgoA7Q">buy on ebay</a></li>
+<li>2 x 1000uF capacitor - <a href="https://rover.ebay.com/rover/1/711-53200-19255-0/1?icep_id=114&amp;ipn=icep&amp;toolid=20004&amp;campid=5338101636&amp;mpre=http%3A%2F%2Fwww.ebay.com%2Fitm%2F10PCS-1000uF-25V-10mmx20mm-Radial-Electrolytic-Capacitors-%2F192096754699%3Fhash%3Ditem2cb9dbdc0b%3Ag%3Aud8AAOSw44BYltiT">buy on ebay</a></li>
+<li>Raspberry Pi - Optional - <a href="https://rover.ebay.com/rover/1/711-53200-19255-0/1?icep_id=114&amp;ipn=icep&amp;toolid=20004&amp;campid=5338101636&amp;mpre=http%3A%2F%2Fwww.ebay.com%2Fitm%2FRaspberry-Pi-3-Model-B-Quad-Core-1-2GHz-64bit-CPU-1GB-RAM-WiFi-Bluetooth-4-1-%2F141136387726%3Fhash%3Ditem20dc625e8e%3Ag%3AWkMAAOSwBnVW-foz">buy on ebay</a></li>
+</ul>
+<p>The Arduino is the controlling unit and uses the ESP8266 chip to achieve wireless connectivity. There will be only one power supply (5v 10a) powering the Arduino, ESP8266 and the LED strip. Therefore, a 3.3v voltage regulator is necessary for the ESP8266 chip, a capacitor should be used together with the regulator to smooth out any ripples.</p>
+<p>The WS2812B strip supports addressing every LED individually, however, this functionality was not used and the strip is controlled as a whole. The strip is by far the most power hungry of all components and special care should be taken to pair it with a suitable power supply.  Keep in mind that each LED is actually composed out of 3 coloured LEDs (red, green, blue) that draw up to 60 milliamps at maximum brightness white.</p>
+<p>The capacitive touch switch is used to manually turn the strip on or off, or to adjust the brightness level. A short sensor touch will cause the power to be toggled on/off while keeping the sensor touched will cause the brightness to gradually increase.</p>
+<p>The Raspberry Pi does not play an active role in the hardware setup. It is used to host various software programs and can easily be replaced by a desktop, laptop or NAS.</p>
+<h2>Software</h2>
+<p>Controlling the ambient light system is performed by a suite of software:</p>
+<ul>
+<li><a href="https://github.com/CosminLazar/LEDStripController">LEDStripController</a> - runs on the Arduino and is responsible for communicating with the LED strips, publishing and responding to MQTT messages, and responding to the touch sensor inputs.</li>
+<li><a href="https://github.com/tuanpmt/espduino">Espduino</a> - firmware and software for the ESP01 chip to avoid working with AT commands.</li>
+<li><a href="https://github.com/eclipse/mosquitto">Mosquitto</a> - MQTT server, running on the Raspberry Pi.</li>
+<li><a href="https://github.com/hobbyquaker/homekit2mqtt">Homekit2mqtt</a> - HomeKit to MQTT bridge, running on the Raspberry Pi.</li>
+</ul>
+<p>If you are going for a similar setup, keep in mind that Espduino is discontinued! I recommend using an ESP12 instead of the Arduino+Esp01 combination.</p>
+<p>In case of network loss ESP01 automatically tries to reconnect to the wifi, however there are times when the chip stops responding entirely. To mitigate this issue a "watchdog" was set in place to hard reboot the chip (power cycle) when it stops responding.</p>
+<p>In the general usage pattern a burst of messages are sent to the controlling pair (ESP01+Arduino) and processing those messages is prioritised over updating the hardware (actually turning the LED strip on and configuring each LED according to the chosen colour and brightness). This debounce is controlled by the HARDWARE_UPDATE_DEBOUNCE parameter.</p>
+<p>Touching the touch sensor for a short period of time triggers a power toggle, while keeping the sensor touched causes it to cycle the brightness in steps. It takes 10 steps to go from the lowest to the highest brightness level.</p>
+<h2>Assembly</h2>
+<p>Here are a few pictures from the assembly process</p>
+<p><a href="https://everydaylifein.net/wp-content/uploads/2017/06/IMG_0018.jpg"><img class="aligncenter wp-image-440 size-medium" src="{{ site.baseurl }}/assets/*[D*[D*[D*[D*[D*[D*[D*[D/2017/06/IMG_0018-300x125.jpg" alt="Assembly process #1" width="300" height="125" /></a></p>
+<p><a href="https://everydaylifein.net/wp-content/uploads/2017/06/IMG_0019.jpg"><img class="aligncenter wp-image-439 size-medium" src="{{ site.baseurl }}/assets/*[D*[D*[D*[D*[D*[D*[D*[D/2017/06/IMG_0019-250x300.jpg" alt="Assembly process #2" width="250" height="300" /></a></p>
+<p><a href="https://everydaylifein.net/wp-content/uploads/2017/06/IMG_0129.jpg"><img class="aligncenter wp-image-438 size-medium" src="{{ site.baseurl }}/assets/*[D*[D*[D*[D*[D*[D*[D*[D/2017/06/IMG_0129-300x225.jpg" alt="Assembly process #3" width="300" height="225" /></a></p>
+<h2>Demo</h2>
+<p>[video width="1280" height="720" mp4="https://everydaylifein.net/wp-content/uploads/2017/06/AmbientLights_demo.mp4" webm="https://everydaylifein.net/wp-content/uploads/2017/06/AmbientLights_demo.webm"][/video]</p>

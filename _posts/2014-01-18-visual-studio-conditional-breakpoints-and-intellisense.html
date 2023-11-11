@@ -1,0 +1,54 @@
+---
+layout: post
+title: Visual Studio - Conditional breakpoints and IntelliSense
+date: 2014-01-18 19:04:18.000000000 +00:00
+type: post
+parent_id: '0'
+published: true
+password: ''
+status: publish
+categories:
+- Did you know?
+tags:
+- Visual Studio
+meta:
+  _yoast_wpseo_opengraph-image: http://everydaylifein.net/wp-content/uploads/2013/12/iconmonstr-javascript-code-icon-256.png
+  _yoast_wpseo_metadesc: A quick look into Visual Studio conditional breakpoints and
+    using IntelliSense when defining them.
+  _yoast_wpseo_focuskw: Conditional breakpoints and IntelliSense
+  _wpas_skip_5526404: '1'
+  _wpas_skip_5526398: '1'
+  _edit_last: '1'
+  _amt_description: A quick look into Visual Studio conditional breakpoints and using
+    IntelliSense when defining them.
+  _amt_keywords: visual studio, intellisense, conditional breakpoint
+  _wpas_done_all: '1'
+  _yoast_wpseo_linkdex: '65'
+  _yoast_wpseo_opengraph-image-id: "-1"
+author:
+  login: admin
+  email: cosminconstantinlazar@gmail.com
+  display_name: Cosmin Lazar
+  first_name: Cosmin
+  last_name: Lazar
+permalink: "/did-you-know/visual-studio-conditional-breakpoints-and-intellisense.html"
+excerpt: A quick look into Visual Studio conditional breakpoints and using IntelliSense
+  when defining them.
+---
+<p>I was a bit puzzled to find out how many people overlook the conditional breakpoints in Visual Studio. They usually settle with just setting a regular breakpoint, and then F5-ing their way until the program enters a specific state they are after. Sure, it gets the job done, but it makes your debugging experience worse, and since Visual Studio has so many tools that you can use when debugging, you have no excuse for having a miserable debugging experience (except when you debug distributed systems, then you just suffer :) - well, not really, I am stretching it a bit)</p>
+<p>However, this is how you set a conditional breakpoint:</p>
+<ul>
+<li>add a breakpoint as you usually do</li>
+<li>then right click the breakpoint indicator and select Condition</li>
+<li>Voila!</li>
+</ul>
+<p>[caption id="attachment_124" align="aligncenter" width="300"]<a href="http://everydaylifein.net/wp-content/uploads/2014/01/ConditionalBreakpoint.png" target="_blank"><img class="size-medium wp-image-124 " alt="Visual Studio Conditional Breakpoint" src="{{ site.baseurl }}/assets/*[D*[D*[D*[D*[D*[D*[D*[D/2014/01/ConditionalBreakpoint-300x164.png" width="300" height="164" /></a> Visual Studio Conditional Breakpoint[/caption]</p>
+<ul>
+<li>Most of the few people who reach this point will stop here, having the same question in their mind, why no intellisense?</li>
+<li>The answer: Ctrl + Space, if you press the magic key combination when you type your condition, you will bring up intellisense</li>
+<li>Voila!</li>
+</ul>
+<p>[caption id="attachment_125" align="aligncenter" width="300"]<a href="http://everydaylifein.net/wp-content/uploads/2014/01/ConditionalBreakpointIntellisense.png" target="_blank"><img class="size-medium wp-image-125 " alt="Visual Studio - Intellisense in conditional breakpoint" src="{{ site.baseurl }}/assets/*[D*[D*[D*[D*[D*[D*[D*[D/2014/01/ConditionalBreakpointIntellisense-300x158.png" width="300" height="158" /></a> Visual Studio - Intellisense in conditional breakpoint[/caption]</p>
+<ul>
+<li>These features have been in place since forever, however people seem to have overlooked them, even though they greatly improve the debugging experience</li>
+</ul>

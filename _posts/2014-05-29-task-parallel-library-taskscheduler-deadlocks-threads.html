@@ -1,0 +1,190 @@
+---
+layout: post
+title: Task Parallel Library - TaskScheduler, Threads, and Deadlocks
+date: 2014-05-29 14:43:02.000000000 +00:00
+type: post
+parent_id: '0'
+published: true
+password: ''
+status: publish
+categories:
+- ".NET"
+tags:
+- ".net"
+- deadlock
+- fromcurrentsynchronizationcontext
+- multithreading
+- SynchronizationContext
+- task
+- task parallel library
+- taskscheduler
+- threading
+- TPL
+meta:
+  _edit_last: '1'
+  _publicize_facebook_user: https://www.facebook.com/lazarconstantincosmin
+  _publicize_twitter_user: "@CosminLazar"
+  _yoast_wpseo_opengraph-description: Understanding TaskSchedulers, deadlocks and
+    unexpected behaviors of Task Parallel Library
+  _wpas_skip_7497947: '1'
+  _yoast_wpseo_focuskw: TaskScheduler
+  _yoast_wpseo_metadesc: Understanding TaskSchedulers, deadlocks and unexpected behaviors
+    of Task Parallel Library
+  _yoast_wpseo_linkdex: '74'
+  _yoast_wpseo_google-plus-description: Understanding TaskSchedulers, deadlocks and
+    unexpected behaviors of Task Parallel Library
+  _wpas_done_all: '1'
+  _yoast_wpseo_focuskw_text_input: TaskScheduler
+  _wpas_skip_5526398: '1'
+  _wpas_skip_5526404: '1'
+  _wpas_skip_6755022: '1'
+  _yoast_wpseo_primary_category: '19'
+author:
+  login: admin
+  email: cosminconstantinlazar@gmail.com
+  display_name: Cosmin Lazar
+  first_name: Cosmin
+  last_name: Lazar
+permalink: "/netframework/task-parallel-library-taskscheduler-deadlocks-threads.html"
+---
+<p>Task Parallel Library makes your code perform faster, look nicer (aka review), and easier to maintain (aka fix bugs, and extend). However, there are a few things you need to be aware of while using it, otherwise you may end up with a strangely behaving application, or worse, you will find yourself forever waiting for a task to be executed &lt;-- <em>not cool, not cool at all</em>.</p>
+<h2>The mighty TaskScheduler</h2>
+<p>One of the most important notions you need to grasp when using tasks is TaskScheduler. The TaskScheduler represents a mechanism that is responsible for scheduling tasks for execution.</p>
+<p>At the time of writing this post, there are 3 TaskSchedulers in .NET framework 4.5:</p>
+<ul>
+<li>
+<h3>ThreadPoolTaskScheduler</h3>
+<ul>
+<li>uses the ThreadPool to schedule tasks for execution</li>
+<li>the scheduler by itself is not very smart nor does it do a lot, however the ThreadPool is extremely smart and fast. A few noticeable features of it are: lock-free mechanism for storing/retrieving user work items, work stealing (threads from the tread pool will steal work from each other when they have nothing to do) - you can read more <a title="link describing improvements brought to ThreadPool in .NET Framework 4" href="http://blogs.msdn.com/b/ericeil/archive/2009/04/23/clr-4-0-threadpool-improvements-part-1.aspx" target="_blank">here</a></li>
+</ul>
+</li>
+<li>
+<h3>SynchronizationContextTaskScheduler</h3>
+<ul>
+<li>uses the current synchronization context (SynchronizationContext.Current) and posts the task to it - you can read more <a title="Extensive description of the various implementations of the SynchronizationContext" href="http://msdn.microsoft.com/en-us/magazine/gg598924.aspx" target="_blank">here</a></li>
+<li>If called from the UI thread, Silverlight, Windows Presentation Foundation, and WinForms, SynchronizationContext.Current will return a synchronization context that will always execute work on the UI thread</li>
+<li>used by calling TaskScheduler.FromCurrentSynchronizationContext()</li>
+<li>VERY IMPORTANT - there are multiple implementations of the SyncronizationContext, and it is not always safe to assume that a synchronization context is bound to only one thread, therefore when using TaskScheduler.FromCurrentSynchronizationContext() you need to be on the UI thread, this is the only way to guarantee that you will retrieve back a task scheduler that schedules tasks on the UI thread</li>
+</ul>
+</li>
+<li>
+<h3>ConcurrentExclusiveTaskScheduler</h3>
+<ul>
+<li>Is a hybrid that operates in two modes
+<ul>
+<li>ProcessingExclusiveTask - processes the scheduled tasks in an exclusive manner (one at a time, no two tasks run at the same time)</li>
+<li>ProcessingConcurrentTasks - processes the scheduled tasks in a concurrent manner, and allows to specify a max concurrency level (how many tasks can run at the same time)</li>
+</ul>
+</li>
+<li>Used internally by ConcurrentExclusiveSchedulerPair</li>
+<li>You can read more <a title="More information about ConcurrentExclusiveSchedulerPair" href="http://msdn.microsoft.com/en-us/library/system.threading.tasks.concurrentexclusiveschedulerpair(v=vs.110).aspx" target="_blank">here</a></li>
+</ul>
+</li>
+</ul>
+<p>&nbsp;</p>
+<p>While creating tasks and continuations you are very likely to stumble upon two static properties of the TaskScheduler</p>
+<ol>
+<li><strong>TaskScheduler.Default</strong>
+<ul>
+<li>Returns an instance of the ThreadPoolTaskScheduler</li>
+</ul>
+</li>
+<li><strong>TaskScheduler.Current</strong>
+<ul>
+<li>If called from within an executing task will return the TaskScheduler of the currently executing task</li>
+<li>If called from any other place will return TaskScheduler.Default</li>
+</ul>
+</li>
+</ol>
+<p>&nbsp;</p>
+<h2>Threads</h2>
+<p>Depending on how you create and run your tasks, different schedulers will be used, thus a variating threading behavior will be exhibited.</p>
+<pre lang="csharp">private void InstantiateAndStart()
+{
+  var task = new Task(() =&gt; { });
+  task.Start(); 
+  //will use TaskScheduler.Current to schedule the task for execution
+}
+
+private void UsingTheTaskFactory()
+{
+  Task.Factory.StartNew(() =&gt; { }); 
+  //will use TaskScheduler.Current to schedule the task for execution
+}
+
+private void UsingTaskRun()
+{
+  Task.Run(() =&gt; { });
+  //will use TaskScheduler.Default to schedule the task for execution
+}
+
+private void ExecutingOnANewThread()
+{
+  //both tasks defined bellow will be executed on a new background thread
+  var task = new Task(() =&gt; { }, TaskCreationOptions.LongRunning);
+  task.Start(TaskScheduler.Default);
+
+  //or
+
+  var task2 = Task.Factory.StartNew(() =&gt; { }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+}
+</pre>
+<h3>Important facts</h3>
+<ul>
+<li>starting a new task does not necessary spawn a brand new thread, in certain conditions it will execute on background thread, and in others will execute on the same thread that it was started. It all depends on the TaskScheduler that gets used to schedule the task.</li>
+<li>if you want your task to execute on a brand new thread, use the <em>ExecutingOnANewThread</em> example above, and keep in mind that it is up for the task scheduler to decide what to do with your <em>TaskCreationOptions.LongRunning</em>. The ThreadPoolTaskScheduler will always create a new background thread when presented with this task creation option, however other task schedulers may exhibit a different behavior.</li>
+<li>the constructs that use the ambiental <em>TaskScheduler.Current</em> can easily become tricky, therefore it is recommended to use the <em>UsingTaskRun</em> example when you want your task to execute asynchronously, and always specify your TaskScheduler when using the other constructs, as it makes your code more explicit, and less likely for people to get in trouble when working with it.</li>
+</ul>
+<h2>Deadlocks and unexpected behaviors</h2>
+<h3>Trying to do something on a background thread and ending up executing on the UI thread</h3>
+<p>Take the following example</p>
+<pre lang="csharp">Task.Factory.StartNew(() =&gt; PerformSlowOperation())
+.ContinueWith(loadTask =&gt;
+{
+   //load the loadTask.Result in the UI
+   //now you decide you want to do some more slow operations and start a new task
+
+   Task.Factory.StartNew(() =&gt; PerformSlowOperation());
+}, TaskScheduler.FromCurrentSynchronizationContext());
+</pre>
+<p>The example illustrates a simple scenario in which a task is started to perform a slow operation, then a continuation is hocked up to the task to print the results to the screen, hence the usage of <em>TaskScheduler.FromCurrentSynchronizationContext()</em>, afterwards a new slow operation is triggered.</p>
+<p><strong>Q</strong>: On which thread will the second invocation of the PerformSlowOperation execute, background or UI thread?</p>
+<p><strong>A</strong>: UI thread</p>
+<p><strong>Why</strong>:</p>
+<ol>
+<li><em>Task.Factory.StartNew</em> uses <em>TaskScheduler.Current,</em> on the first invocation of PerformSlowOperation, the <em>TaskScheduler.Current</em> was not defined, therefore <em>TaskScheduler.Default</em> was used =&gt; execution on a background thread</li>
+<li>The continuation was executed on the UI thread, because it was requested by specifying the synchronization context specific TaskScheduler</li>
+<li>When PerformSlowOperation was called the second time, the <em>TaskScheduler.Current</em> was no longer undefined, but it was actually pointing to the TaskScheduler of the continuation, and the TaskScheduler of the continuation schedules work to be executed on the UI thread.</li>
+</ol>
+<p><strong>Fix</strong>:</p>
+<ul>
+<li>Use a task construct that can take a task scheduler when executing PerformSlowOperation the second time</li>
+<li>Use <em>TaskCreationOption.HideScheduler</em> when executing PerformSlowOperation the second time</li>
+<li>etc</li>
+</ul>
+<h3>Deadlocking</h3>
+<p>Consider the following case</p>
+<pre lang="csharp">new Task(() =&gt;
+{
+   //executing on the UI thread
+
+   //starting a new task and waiting for it
+   var otherTask = Task.Factory.StartNew(() =&gt; PerformSlowOperation());
+   otherTask.Wait();
+}).Start(TaskScheduler.FromCurrentSynchronizationContext());</pre>
+<p>The above example illustrates a scenario when a task is executing on the UI thread, then decides to spawn a new task to do some lightweight work and wait for it to finish.</p>
+<p><strong>Q</strong>: What will happen when the above code gets run?</p>
+<p><strong>A</strong>: The application will hang forever</p>
+<p><strong>Why</strong>: Thanks to <em>TaskScheduler.Current</em> the invocation of the PerformSlowOperation method will be scheduled on the UI thread, but it will never get the chance to start, because the current task, which also executes on the UI thread, is blocking the thread waiting for it to finish executing.</p>
+<p><strong>Fix</strong>:</p>
+<ul>
+<li>Do not wait on the task, setup a continuation</li>
+<li>Use a task construct that can take a task scheduler for otherTask</li>
+<li>Use <em>TaskCreationOption.</em><span style="color: #2a2a2a;"><em>HideScheduler</em> on the otherTask</span></li>
+<li>etc</li>
+</ul>
+<p>The above is by no means an extensive list of what can go wrong when using tasks, however the benefits outweigh the potential pitfalls, and one should not be afraid of using tasks. However, if you find yourself in a tricky situation remember that your are not alone, Visual Studio includes a task visualizer that can help you understand what's happening.</p>
+<p><a href="http://everydaylifein.net/wp-content/uploads/2014/05/VSTaskVisualizer.png"><img class=" wp-image-179" src="{{ site.baseurl }}/assets/*[D*[D*[D*[D*[D*[D*[D*[D/2014/05/VSTaskVisualizer-300x71.png" alt="Visual Studio Task Visualizer" width="706" height="167" /></a></p>
+<p>&nbsp;</p>
+<p>The above print screen of the Task Visualizer depicts the deadlocking example. You can observe the first task executing on the main thread, and the second task being just scheduled for execution - too bad it will never get executed. But the Task Visualizer doesn't necessary indicate that we are in a deadlock situation, it is still up to the developer to switch to each task, understand how they relate to each other, and identify the deadlock.</p>

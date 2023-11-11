@@ -1,0 +1,61 @@
+---
+layout: post
+title: My way through RavenDB Conference, Malmö 2014
+date: 2014-09-23 22:04:27.000000000 +00:00
+type: post
+parent_id: '0'
+published: true
+password: ''
+status: publish
+categories:
+- Conferences
+tags:
+- conference
+- ravendb
+meta:
+  _edit_last: '1'
+  _publicize_facebook_user: https://www.facebook.com/lazarconstantincosmin
+  _publicize_twitter_user: "@CosminLazar"
+  _yoast_wpseo_opengraph-description: 'Brief description of the #RavenDB 3.0 conference
+    held in Malmö, 2014'
+  _yoast_wpseo_google-plus-description: 'Brief description of the #RavenDB 3.0 conference
+    held in Malmö, 2014'
+  _yoast_wpseo_focuskw: RavenDB Conference Malmö
+  _yoast_wpseo_title: My way through RavenDB Conference, Malmö 2014
+  _yoast_wpseo_metadesc: 'Brief description of the #RavenDB 3.0 conference held in
+    Malmö, 2014'
+  _yoast_wpseo_linkdex: '67'
+  _wpas_done_all: '1'
+  _wpas_mess: 'My way through #RavenDB Conference, Malmö 2014 http://wp.me/p49ir3-4o'
+author:
+  login: admin
+  email: cosminconstantinlazar@gmail.com
+  display_name: Cosmin Lazar
+  first_name: Cosmin
+  last_name: Lazar
+permalink: "/conferences/way-ravendb-conference-malmo-2014.html"
+excerpt: 'Brief description of the #RavenDB 3.0 conference held in Malmö, 2014'
+---
+<p>Last week (18th of September 2014) I attended the RavenDB conference in Malmö, Sweden. As expected, the conference focused primarily on the upcoming release of the 3rd version of RavenDB, but it also included a use case talk (a successful story of implementing RavenDB in a high availability solution) given by Manuel Scapolan and Mauro Servienti.</p>
+<p>In a cozy atmosphere, and surrounded by approximately 30 attendants, Oren Eini (aka Ayende, aka the god of RavenDB) briefly introduced us to the main upcoming features of RavenDB 3.0:</p>
+<ul>
+<li><strong>RavenFS</strong> - a distributed file system designed to handle your attachments in an optimized manner</li>
+<li><strong>.NET RavenDB Client</strong> - is now fully async, but also packs synchronous methods which will just wrap the async ones and do the wait for you</li>
+<li><strong>Voron</strong> - a new storage engine that can be used instead of Esent. Voron, the russian translation of the word raven, should allow the RavenDB team to achieve higher performance and a more seamlessly integrated solution - this is because they now own the full stack and can optimize, fix bugs, optimize, fix bugs, and so on.</li>
+<li><strong>Raven Studio</strong> - probably the most awaited feature of all, is a complete redesign of the old one and packs very useful functionality. A strong emphasis has been placed on operations when designing the new studio, therefore you will now: be able to see what's happening in the database in realtime, get suggestions regarding index merging when possible, be able to easily create a debug-package, that you can send to RavenDB support when in trouble, easily configure sql replication, see the replication topology though the replication visualizer, and many other sweet features.</li>
+<li><strong>Indexing optimizations</strong> - the indexes will now be built in memory, and from time to time flushed to the disk. Moreover, they will now be aware of the collection they are indexing, and will become stale only if the collection they are targeting has changed.</li>
+<li>Many many other features that I will not go over in this post, however here are some links that should get you up to date with the new features of RavenDB 3.0:
+<ul>
+<li><a href="http://ayende.com/blog/168322/what-is-new-in-ravendb-3-0-voron" target="_blank">http://ayende.com/blog/168322/what-is-new-in-ravendb-3-0-voron</a></li>
+<li><a href="http://ayende.com/blog/168323/what-is-new-in-ravendb-3-0-ravenfs" target="_blank">http://ayende.com/blog/168323/what-is-new-in-ravendb-3-0-ravenfs</a></li>
+<li><a href="http://ayende.com/blog/168386/what-is-new-in-ravendb-3-0-client-side" target="_blank">http://ayende.com/blog/168386/what-is-new-in-ravendb-3-0-client-side</a></li>
+<li><a href="http://ayende.com/blog/168417/what-is-new-in-ravendb-3-0-indexing-backend" target="_blank">http://ayende.com/blog/168417/what-is-new-in-ravendb-3-0-indexing-backend</a></li>
+<li><a href="http://ayende.com/blog/168418/what-is-new-in-ravendb-3-0-indexing-enhancements" target="_blank">http://ayende.com/blog/168418/what-is-new-in-ravendb-3-0-indexing-enhancements</a></li>
+<li><a href="http://ayende.com/blog/168450/what-changed-in-ravendb-3-0-replication" target="_blank">http://ayende.com/blog/168450/what-changed-in-ravendb-3-0-replication</a></li>
+<li><a href="http://ayende.com/blog/168513/what-is-new-in-ravendb-3-0-operations-the-pretty-pictures-tour" target="_blank">http://ayende.com/blog/168513/what-is-new-in-ravendb-3-0-operations-the-pretty-pictures-tour</a></li>
+<li>Or, if you are more into videos than reading, you can try the HibernatingRhinos youtube channel <a href="https://www.youtube.com/user/HibernatingRhinos/videos" target="_blank">https://www.youtube.com/user/HibernatingRhinos/videos</a></li>
+</ul>
+</li>
+</ul>
+<p>The conference also included talks by Michael Yarichuk (RavenDB contributor),  and Judah Himango (RavenDB's HTML5 Studio Creator).</p>
+<p>Having so many new features and enhancements, means that the RavenDB source code has changed, therefore obsoleting the parts that I studied. Therefore, I should probably get back to understanding these new features from the inside out by reviewing their mighty source code.</p>

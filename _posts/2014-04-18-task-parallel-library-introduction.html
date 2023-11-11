@@ -1,0 +1,128 @@
+---
+layout: post
+title: Task Parallel Library introduction
+date: 2014-04-18 18:18:43.000000000 +00:00
+type: post
+parent_id: '0'
+published: true
+password: ''
+status: publish
+categories:
+- ".NET"
+tags:
+- ".net"
+- multithreading
+- task
+- TPL
+meta:
+  _edit_last: '1'
+  _yoast_wpseo_focuskw: task parallel library
+  _yoast_wpseo_metadesc: Brief introduction to Task Parallel Library
+  _yoast_wpseo_linkdex: '80'
+  _yoast_wpseo_opengraph-description: Brief introduction to Task Parallel Library
+  _yoast_wpseo_google-plus-description: Brief introduction to Task Parallel Library
+  _wpas_done_all: '1'
+author:
+  login: admin
+  email: cosminconstantinlazar@gmail.com
+  display_name: Cosmin Lazar
+  first_name: Cosmin
+  last_name: Lazar
+permalink: "/netframework/task-parallel-library-introduction.html"
+---
+<p>Task Parallel Library is a multi-threading framework that you can use in your .net daily life. The framework aims at easying the development of multi-threaded applications by offering a nice API on top of Thread and ThreadPool.</p>
+<p>The main character in TPL is Task, and it represents a unit of work that should be executed asynchronously.</p>
+<h2>Creating and running a task</h2>
+<p>Can be achieved though one of the following contraptions:</p>
+<ul>
+<li><strong>simple instantiate and run</strong></li>
+</ul>
+<pre lang="csharp" escaped="true">Console.WriteLine("Main runs on thread {0}", System.Threading.Thread.CurrentThread.ManagedThreadId);
+
+var myTask = new Task(() =&gt;
+   {
+      Console.WriteLine("My task runs on thread {0}", System.Threading.Thread.CurrentThread.ManagedThreadId);
+   });
+
+myTask.Start();
+</pre>
+<ul>
+<li><strong>using the TaskFactory offered by Task, or Task&lt;TResult&gt;</strong></li>
+</ul>
+<pre lang="csharp" escaped="true">Console.WriteLine("Main runs on thread {0}", System.Threading.Thread.CurrentThread.ManagedThreadId);
+
+var myTask = Task.Factory.StartNew(() =&gt;
+   {
+      Console.WriteLine("My task runs on thread {0}", System.Threading.Thread.CurrentThread.ManagedThreadId);
+   });
+</pre>
+<ul>
+<li><strong>using Task.Run</strong></li>
+</ul>
+<pre lang="csharp" escaped="true">Console.WriteLine("Main runs on thread {0}", System.Threading.Thread.CurrentThread.ManagedThreadId);
+
+var myTask = Task.Run(() =&gt;
+   {
+      Console.WriteLine("My task runs on thread {0}", System.Threading.Thread.CurrentThread.ManagedThreadId);
+   });
+</pre>
+<p>Calling the steps required to create and run a Task a contraption is a bit harsh, but in my opinion there are too many ways to start and run a task. Using any of the above constructions will eventually/hopefully achieve you the same result, as they only differ in the amount of customization that you can specify.</p>
+<h2>Further understanding tasks</h2>
+<p>Means getting used with the following</p>
+<h3>TaskCreationOptions</h3>
+<ul>
+<li><em>None</em> - you have no idea what you're doing and just want to let TPL do its job</li>
+<li><em>PreferFairness</em> - The default task scheduler that ships with .net uses a global queue where it enqueues tasks to be executed, then as threads from the thread pool become available, tasks will get dequeued and assigned to the now available thread. This is what happens for top level tasks (tasks not created within another task), for nested tasks, a separate behavior is exhibited, those tasks don't end up on the global queue, instead they get queued in a local queue belonging to the current running thread. When it becames free, the current thread will first try to pickup work from his own local queue, and only if there's nothing there will try to pickup work from the global queue. An important thing to note here, is that picking up work from the local queue hapens in a LIFO (Last In First Out) fashion, while picking up work from the global queue takes place in a FIFO (First In First Out) manner. Now that we worked our way to this point, we can finally explain what PreferFairness does. It indicates that a newly started task should always be enqueued on the global queue, regardless if it is a child task or not (thus causing tasks to be executed in the order they were started). If you want to read the full story about task queuing, and how threads can steal work from each other, make sure to follow this <a title="link" href="http://msdn.microsoft.com/en-us/library/dd997402(v=vs.110).aspx" target="_blank">link</a></li>
+<li><em>AttachedToParent</em> - by default, if you have nested tasks, they will be treated individually, meaning that a parent task can complete before its children complete, or the other way around, there is no synchronization between child and parrent tasks. If you specify AttachedToParent all child tasks will become "attached" to their parent tasks, and the parent task will only complete when the child tasks complete (simply said, the parent task will wait for its children to finish)</li>
+<li><em>DenyChildAttach</em> - this option allows a parent task to prevent any child tasks from attaching to it. An important note here is that by default a child task will not attempt to attach itself to the parent, it is up to the programmer to request this behavior, through the use of AttachedToParent</li>
+<li><em>LongRunning</em> - gives a hint to the TPL library that the task is expected to take more than just a few seconds to complete. The default task scheduler will then execute the task on a brand new thread, and not a thread from the ThreadPool.</li>
+<li><em>HideScheduler</em> - will cause the task to be scheduled on TaskScheduler.Default, and not on a potential TaskScheduler.Current &lt;-- more about this will follow in a new post</li>
+</ul>
+<p><em>Important note - you can specify more than one task creation option by bitwise OR-ing multiple options (e.g.: TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach)</em></p>
+<h3>CancellationToken</h3>
+<p>Each task has a CancellationToken that can be used to prematurely terminate a task.</p>
+<p><em>Important note - terminating a task doens't just happen out of the blue, it is the programmers responsability to periodically evaluate from within the task if cancellation has been requested, and gracefully terminate if requested (can do it easily by calling token.ThrowIfCancellationRequested()). </em></p>
+<p><em><em>Important note - If a task cancellation is requested before </em>TPL gets the chance to actually start the task, the now cancelled task will not be started at all, and will complete immediately.</em></p>
+<h3>TaskScheduler</h3>
+<p>Will evaluate the task requirements and schedule it for execution accordingly (on a new thread, threadpool thread, etc)</p>
+<h2>Task chaining</h2>
+<p>Task chaining allows a task to start executing only when a specific task has finished (faulted, etc). This feature fits nicely with common UI data loading/processing situations, when you want to perform some lengthily operation on a background thread and only transition to the UI thread when you want to display the results of the operation.</p>
+<pre lang="csharp" escaped="true">Debug.WriteLine("Application starts up on thread {0}", System.Threading.Thread.CurrentThread.ManagedThreadId);
+
+Task&lt;ProcessingResult&gt;.Run(() =&gt;
+{
+   Debug.WriteLine("Doing some lengthily operation on thread {0}", System.Threading.Thread.CurrentThread.ManagedThreadId);
+   return new ProcessingResult();
+})
+.ContinueWith((prevTask) =&gt;
+{
+   ProcessingResult prevTaskResult = prevTask.Result;
+   Debug.WriteLine("Showing the operation results to the user on thread {0}", System.Threading.Thread.CurrentThread.ManagedThreadId);
+
+}, CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.FromCurrentSynchronizationContext());
+</pre>
+<p>The output of the above code is</p>
+<p><em>Application starts up on thread 8</em><br />
+<em> Doing some lengthly operation on thread 9</em><br />
+<em> Showing the operation results to the user on thread 8</em></p>
+<p><em>Note - in the above example you can also observe how you can return information from one task and how it gets passed to the continuation</em></p>
+<h3>TaskContinuationOptions</h3>
+<p>Chaining tasks requires understanding the TaskContinuationOptions enum:</p>
+<ul>
+<li><em>None</em> - as described above</li>
+<li><em>PreferFairness</em> - as described above</li>
+<li><em>AttachedToParent</em> - as described above</li>
+<li><em>DenyChildAttach</em> - as described above</li>
+<li><em>LongRunning</em> - as described above</li>
+<li><em>HideScheduler</em> - as described above</li>
+<li><em>ExecuteSynchronously</em> - requests the continuation to run synchronously, meaning that after the first task finishes, the continuation will be executed on the same thread</li>
+<li><em>LazyCancellation</em> - no point in me describing it, just follow this <a title="link" href="http://blogs.msdn.com/b/pfxteam/archive/2012/09/22/new-taskcreationoptions-and-taskcontinuationoptions-in-net-4-5.aspx" target="_blank">link </a>and scroll down to LazyCancellation</li>
+<li><em>NotOnCanceled</em> - does not execute the continuation if the first task was canceled</li>
+<li><em>NotOnFaulted</em> - does not execute the continuation if the first task had an unhandled exception</li>
+<li><em>NotOnRanToCompletion</em> - does not execute the continuation if the first task ran without exceptions</li>
+<li><em>OnlyOnCanceled</em> - NotOnFaulted | NotOnRanToCompletion</li>
+<li><em>OnlyOnFaulted</em> - NotOnCanceled | NotOnRanToCompletion</li>
+<li><em>OnlyOnRanToCompletion</em> - NotOnCanceled | NotOnFaulted</li>
+</ul>
+<p><em>Important note - you can specify more than one task continuation option by bitwise OR-ing multiple options (e.g.: TaskContinuationOptions.LongRunning | <em>TaskContinuationOptions</em>.<em>OnlyOnRanToCompletion</em> )</em></p>
+<p>Using tasks is a nice way to introduce multi threading in your application, and, if used with a bit of care, will make your code faster and easier to read. However, there are a few edge cases that can cause unexpected results. However, I will cover these cases in a future post.</p>

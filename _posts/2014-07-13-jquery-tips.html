@@ -1,0 +1,109 @@
+---
+layout: post
+title: Quick jQuery tips
+date: 2014-07-13 19:40:52.000000000 +00:00
+type: post
+parent_id: '0'
+published: true
+password: ''
+status: publish
+categories:
+- Web
+tags:
+- javascript
+- jquery
+- web
+meta:
+  _edit_last: '1'
+  _yoast_wpseo_focuskw: jquery
+  _yoast_wpseo_title: Quick jQuery tips
+  _yoast_wpseo_metadesc: jQuery tips
+  _yoast_wpseo_linkdex: '85'
+  _yoast_wpseo_opengraph-description: Quick jQuery tips
+  _yoast_wpseo_google-plus-description: Quick jQuery tips
+  _wpas_done_all: '1'
+  _wpas_skip_5526398: '1'
+  _wpas_skip_5526404: '1'
+  _wpas_skip_6755022: '1'
+  _wpas_skip_7497947: '1'
+author:
+  login: andreilazar
+  email: lazar.andrei91@gmail.com
+  display_name: Andrei Lazar
+  first_name: Andrei
+  last_name: Lazar
+permalink: "/web-topic/jquery-tips.html"
+---
+<h2>Use CDN with fallback</h2>
+<p>Instead of loading the javascript files from your server, you can use a Content Delivery Network and only use your website as a fallback. This solution has the benefits of  lowering the operational cost of your sever and may also speed the page load for users from other geographical locations.</p>
+<pre>&lt;script&gt;
+window.jQuery || document.write('&lt;script src="js/jquery-version.js"&gt;&lt;/script&gt;')
+&lt;/script&gt;
+</pre>
+<h2>Avoid manipulating the DOM from within a loop</h2>
+<p>Take the following example, where some extra information gets appended to the persons div</p>
+<pre>var parentDiv=$("#persons")
+for(var i=0;I&lt;total;I++)
+{
+  parentDiv.append("div"+i+"&lt;/div&gt;");
+}
+</pre>
+<p>This is inefficient because the browser will redraw the page for each and every change.</p>
+<p>A better approach is to perform all your changes at once</p>
+<pre>var div="";
+for(var i=0;I&lt;total;I++)
+{
+  divs+="&lt;div&gt;"+i+"&lt;/div&gt;";
+}
+$("#persons").html(divs);
+</pre>
+<h2>Checking if an element exists</h2>
+<p>Perform a selection and check the length property</p>
+<pre>var test=$("#test") 
+if(test.length&gt;0) { /*element exists*/}
+</pre>
+<h2>Use the End function</h2>
+<p>You can use the End function to navigate up from a child element to its parent, thus keeping your code fluent and expressive</p>
+<pre>$('&lt;div class="cust"&gt;&lt;span/&gt;&lt;/div&gt;')
+.find("span") //context switches to 'span' element
+   .doSomethingOnTheSpanElement()
+.end() //get back to span's parent div (end() function switches context to parent 'div')
+</pre>
+<h2>Create your own jQuery functions</h2>
+<p>Code expressivity is greatly improved when you have well named functions that depict the behavior they perform.</p>
+<p>Take the following example, where every odd element gets red color upon clicking a button.</p>
+<pre>&lt;input id="btn" type="button" value="click" /&gt;
+&lt;div id="Panel"&gt;
+  &lt;p&gt;first post&lt;/p&gt;
+  &lt;p&gt;seond post&lt;/p&gt;
+  &lt;p&gt;third post&lt;/p&gt;
+  &lt;p&gt;fourth post&lt;/p&gt;
+  &lt;p&gt;fifth post&lt;/p&gt;
+&lt;/div&gt;
+
+$(function () {
+  $.fn.selectEveryOddElement = function () {
+    var arr = [];
+    $.each(this, function (index, item) {
+      if (index % 2 == 0)
+        arr.push(item);
+})
+    return this.pushStack(arr, "selectEveryOddElement", "");
+}
+
+$("#btn").click(function () {
+    $("#Panel").find("p").selectEveryOddElement().css("color", "red");
+})
+});
+</pre>
+<h2>Grep function</h2>
+<p>The $.grep function is a great way to filter an array</p>
+<pre>var people:[ 
+   {"first-name":"Person1","age":17}, 
+   {"first-name":"Person2", "age":20 }, 
+   {"first-name":"Person3", "age":25 } ]; 
+
+people=$.grep(people,function(person){ 
+                        return person.age&gt;18; });
+</pre>
+<p>&nbsp;</p>

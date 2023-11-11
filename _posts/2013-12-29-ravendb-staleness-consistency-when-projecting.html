@@ -1,0 +1,151 @@
+---
+layout: post
+title: RavenDB Staleness consistency when projecting
+date: 2013-12-29 13:45:02.000000000 +00:00
+type: post
+parent_id: '0'
+published: true
+password: ''
+status: publish
+categories:
+- RavenDB
+tags:
+- database
+- nosql
+- query
+- ravendb
+- stale indexes
+meta:
+  _wpas_skip_5526404: '1'
+  _yoast_wpseo_focuskw: RavenDB stale projection
+  _yoast_wpseo_metadesc: Analysing RavenDB projection queries, index-stored fields,
+    and how your projection can be affected by stale indexes.
+  _yoast_wpseo_opengraph-image: http://everydaylifein.net/wp-content/uploads/2013/12/iconmonstr-javascript-code-icon-256.png
+  _wpas_skip_5526398: '1'
+  _edit_last: '1'
+  _amt_description: Analyzing RavenDB projection queries, index-stored fields, and
+    how your projection can be affected by stale indexes. Moreover, we will look into
+    the projection sources of a query (document vs. index-stored field).
+  _amt_keywords: ravendb, projection query, stale indexes, index-stored fields, stale
+    data, query consistency
+  _wpas_done_all: '1'
+  _yoast_wpseo_linkdex: '64'
+  _yoast_wpseo_opengraph-image-id: "-1"
+author:
+  login: admin
+  email: cosminconstantinlazar@gmail.com
+  display_name: Cosmin Lazar
+  first_name: Cosmin
+  last_name: Lazar
+permalink: "/nosql/ravendb/ravendb-staleness-consistency-when-projecting.html"
+excerpt: Analyzing RavenDB projection queries, index-stored fields, and how your projection
+  can be affected by stale indexes. Moreover, we will look into the projection sources
+  of a query (document vs. index-stored field).
+---
+<p style="text-align: justify;">Upon performing a query, RavenDB allows you to return whole documents, or just a subset of data from each document (aka projection query). I won't demonstrate this feature, as you can easily learn about it from <a title="this source" href="http://ravendb.net/docs/2.5/client-api/querying/using-linq-to-query-ravendb" target="_blank">this source</a>.</p>
+<p style="text-align: justify;">Whenever you issue a projection query, all the documents matching your query filters will be internally loaded by RavenDB, then all the fields you requested will be projected out of the documents, and returned to you. The time necessary to execute this operation depends on the number and size of your documents, and many other factors (e.g.: if documents are already present in RavenDB's internal cache). To speed things up, RavenDB allows you to designate fields to be stored in the index. This way, the database won't have to load all the documents, as it will find all the necessary fields in the index used for querying, and retrieving them from the index is extremely fast. However, more fields stored in the index results in an increased index size, and after a certain point, I think it is better to just let RavenDB load the whole document, and apply the projection himself, rather then storing all the fields of a document in the index.</p>
+<p style="text-align: justify;">To sum it all up, this is how projections are handled by RavenDB:</p>
+<ol style="text-align: justify;">
+<li>It will try to fetch the projected fields from the index-stored fields in the index used for querying.</li>
+<li>If not all desired fields could be resolved from the index-stored fields, it will proceed to load the whole document, and project the remaining fields from it.</li>
+</ol>
+<p style="text-align: justify;">Now, let's go through an example where the behavior of combining index-stored fields with document projected fields can lead to unexpected results. Let's say we have this class/document:</p>
+<pre lang="csharp" escaped="true">public class Invoice
+{
+   public string Id { get; private set; }
+   public decimal Price { get; private set; }
+   public decimal Fees { get; private set; }
+   public decimal TotalValue { get; private set; }
+
+   public void SetPrices(decimal price, decimal fees)
+   {
+      Price = price;
+      Fees = fees;
+
+      TotalValue = Price + Fees;
+   }
+}</pre>
+<p style="text-align: justify;"><em>Please note that the <strong>TotalValue</strong> is made out by adding Price and Fees together.</em></p>
+<p style="text-align: justify;">Let's define an index so that we can query our invoices.</p>
+<pre lang="csharp" escaped="true">public class InvoiceIndex : AbstractIndexCreationTask
+{
+   public InvoiceIndex()
+   {
+      Map = invoices =&gt; from invoice in invoices
+                        select new
+                        {
+                           invoice.Price,
+                           invoice.Fees,
+                           invoice.TotalValue
+                        };
+
+      Store(x =&gt; x.TotalValue, FieldStorage.Yes);
+   }
+}</pre>
+<p style="text-align: justify;"><em>Please note that <strong>TotalValue</strong> is stored in the index.</em></p>
+<p style="text-align: justify;">Let's issue a projection query against this index.</p>
+<pre lang="csharp" escaped="true">var invoices = session.Query&lt;Invoice, InvoiceIndex&gt;()
+                      .Select(x =&gt; new
+                                    {
+                                       x.Price,
+                                       x.Fees,
+                                       x.TotalValue
+                                    })
+                     .ToArray();</pre>
+<p style="text-align: justify;">Now, the question of the day:<br />
+After performing the above projection query, will we reach the value of the TotalValue if we sum the Price and Fees together? We should, right? There is only one way to change the Price and the Fees (as they have private setters - lets keep it simple and not think about reflection), and every time that happens, the TotalValue gets updated too.</p>
+<p style="text-align: justify;">What if I told you that the following test fails?</p>
+<pre lang="csharp" escaped="true">[Fact]
+public void ProjectedQueryHasTheSameStalenessLevel()
+{
+   SetupTestInvoiceAndIndex();
+
+   StartChangingTheTestInvoiceLikeCrazy();
+
+   while (true)
+   {
+      using (var session = _store.OpenSession())
+      {
+         var invoices = session.Query&lt;Invoice, InvoiceIndex&gt;()
+                               .Select(x =&gt; new
+                                 {
+                                    x.Price,
+                                    x.Fees,
+                                    x.TotalValue
+                                 })
+                               .ToArray();
+
+         var targetInvoice = invoices.Single();
+
+         var expected = targetInvoice.Fees + targetInvoice.Price;
+         var actual = targetInvoice.TotalValue;
+
+         Assert.Equal(expected, actual);
+      }
+   }
+}</pre>
+<p style="text-align: justify;"><em>What the test is doing is pretty simple, it creates one invoice (SetupTestInvoiceAndIndex), then it spawns a few threads that will continuously load the invoice, call SetPrices with random values, and store the invoice (StartChangingTheTestInvoiceLikeCrazy). Next, it issues a projection query and verifies if Fees+Price==TotalValue. You can find the complete source code <a title="here" href="https://github.com/CosminLazar/everydaylifein.net/tree/RavenDbStalenessConsistencyWhenProjecting" target="_blank">here</a>.</em></p>
+<p style="text-align: justify;">The reason why this is happening, is because index-stored fields are subject to staleness, while the document is always up-to-date, therefore you may get data from two different points in the lifetime of the document (if the index is stale). The picture bellow depicts the value of the TotalPrice index-stored field across document change and index operations.</p>
+<p>[caption id="attachment_82" align="aligncenter" width="816"]<a href="http://everydaylifein.net/wp-content/uploads/2013/12/RavenDbStaleIndex_StoredField_c.png"><img class="size-full wp-image-82" alt="Index-stored fields evolution across document updates" src="{{ site.baseurl }}/assets/*[D*[D*[D*[D*[D*[D*[D*[D/2013/12/RavenDbStaleIndex_StoredField_c.png" width="816" height="435" /></a> Index-stored fields evolution across document updates[/caption]</p>
+<p style="text-align: justify;">A step by step description of what the test is doing is the following:</p>
+<ol style="text-align: justify;">
+<li>SetupTestInvoiceAndIndex method introduces the first phase in the above picture - creates an invoice and waits until it gets indexed.</li>
+<li>StartChangingTheTestInvoiceLikeCrazy method introduces the second phase - does a lot of changes to the invoice, thus making the index return stale results.</li>
+<li>The test runs a query projecting Price, Fees, and TotalPrice.</li>
+<li>Because the query accepts stale results, projection occurs as following:
+<ol>
+<li>Price - projected from the document - always up-to-date</li>
+<li>Fees - projected from the document - always up-to-date</li>
+<li>TotalPrice - projected from the index - subject to staleness</li>
+</ol>
+</li>
+<li>Therefore, Price+Fees might not always equal TotalPrice</li>
+</ol>
+<p style="text-align: justify;">Of course, you can work around this by:</p>
+<ul style="text-align: justify;">
+<li>not accepting stale results</li>
+<li>retrieving the whole document</li>
+<li>adding Price and Fees as index-stored fields</li>
+<li>removing TotalPrice from the index-stored fields</li>
+</ul>
+<p style="text-align: justify;">While I can see the benefits of trying to resolve projections directly from the index-stored fields, I don't see mixing stale data with up-to-date data such a good idea. My opinion is that normal projections should always be performed from the document, and you should use ProjectFromIndexFieldsInto&lt;T&gt; when you want to project from the index-stored fields, but there should not be any fallback, meaning that if some fields could not be found in the index-stored fields, the query should fail.</p>

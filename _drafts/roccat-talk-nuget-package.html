@@ -1,0 +1,44 @@
+---
+layout: post
+title: Roccat-Talk NuGet package
+date: 
+type: post
+parent_id: '0'
+published: false
+password: ''
+status: draft
+categories: []
+tags: []
+meta:
+  _edit_last: '1'
+  _publicize_facebook_user: https://www.facebook.com/lazarconstantincosmin
+  _publicize_twitter_user: "@CosminLazar"
+author:
+  login: admin
+  email: cosminconstantinlazar@gmail.com
+  display_name: Cosmin Lazar
+  first_name: Cosmin
+  last_name: Lazar
+permalink: "/"
+---
+<p>Once I found out the Roccat Isku FX keyboard offers an API for controlling its key illumination settings I setup to take it for a spin. However, I soon found out the API was an unmanaged C++ class library which cannot be directly referenced and used in .NET. This post focuses on the challenges I had to overcome to be able to use the unmanaged API, the things that I learned in the process, and finishing it all by writing a NuGet package that can be used to control the keyboard illumination settings from the .NET world.</p>
+<h2>Talk FX API</h2>
+<p>Roccat has created a software development kit that can be used to configure the LED illumination control on any Talk FX enabled device. Furthermore, the API allows for fine grained control over the illumination state (on/off) of the Roccat Ryos MK Pro keyboard. The sdk can be downloaded from the <a href="http://www.roccat.org/en/Products/Gaming-Software/Talk-FX/" target="_blank">Roccat official page</a>.</p>
+<p>The header of the class that does the actual control is also included in the documentation and it looks like this</p>
+<p>[gist id="b96aaf94a0ddf7c782e5" file="ROCCAT_Talk.h"]</p>
+<p>The documentation included in the sdk is straight forward and easy to comprehend. However, what I found misleading is the fact that they chose to merge two responsibilities into the <em><strong>CROCCAT_Talk</strong></em> class, one being the general control of any TalkFX enabled device, and the other one being the fine grained control that you can exercitate over the Ryos MK Pro keyboard.</p>
+<h2>Making it work in .NET</h2>
+<p>You cannot directly instantiate and use an unmanaged C++ class, and the usual work around this is to create a wrapper (in managed C++ or C) that will allow you to create/destroy a class instance, and afterwards proxy your calls to that class instance. Since C++ black magic extends outside my known spells, I first tried to look around to see if other people have already done this. Searching codeplex and github, I found <a href="https://github.com/eaceaser/talkfx-c-wrapper" target="_blank">talkfx-c-wrapper</a>.</p>
+<p>[gist id="b96aaf94a0ddf7c782e5" file="talkfx-c-wrapper.cpp"]</p>
+<p>As it can be observed, the wrapper provides the same functions defined by the <em><strong>CROCCAT_Talk</strong></em> class and two additional functions (newRoccatTalkHandle and destroyRoccatTalkHandle). The additional two functions manage the lifecycle of the CROCCAT_Talk class. Furthermore, a closer inspection will reveal that the other functions also receive an additional parameter called handle. Having the wrapper class, meant that I was now able to instantiate a CROCCAT_Talk class and send commands to the keyboard.</p>
+<h2>Better API</h2>
+<p>Since the <em><strong>CROCCAT_Talk</strong></em> has multiple responsibilities, in the .NET API I decided to split it in several classes</p>
+<p>[INSERT PICTURE HERE]</p>
+<ul>
+<li>BasicTalkFxConnection - provides a TalkFX connection</li>
+<li>TalkFxConnection - allows LED illumination configuration on all the TalkFX capable devices</li>
+<li>RyosTalkFXConnection - Ryos MK PRO specific LED illumination configuration</li>
+</ul>
+<h3>DllImport</h3>
+<p>At this point I can easily send illumination commands to the keyboard via the TalkFxConnection and RyosTalkFXConnection .NET classes</p>
+<p>&nbsp;</p>

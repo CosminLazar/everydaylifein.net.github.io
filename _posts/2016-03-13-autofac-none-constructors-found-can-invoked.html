@@ -1,0 +1,61 @@
+---
+layout: post
+title: Autofac - None of the constructors found can be invoked
+date: 2016-03-13 17:27:32.000000000 +00:00
+type: post
+parent_id: '0'
+published: true
+password: ''
+status: publish
+categories:
+- ".NET"
+tags:
+- autofac
+- constructor
+- DependencyResolutionException
+- invoke
+- register
+- resolve
+meta:
+  _edit_last: '1'
+  _yoast_wpseo_primary_category: '19'
+  _publicize_facebook_user: https://www.facebook.com/lazarconstantincosmin
+  _publicize_twitter_user: "@CosminLazar"
+  _yoast_wpseo_focuskw_text_input: Autofac constructor
+  _yoast_wpseo_focuskw: Autofac constructor
+  _yoast_wpseo_metadesc: Fixing Autofac 'None of the constructors found can be invoked'
+    due to automatically registered compiler generated state machines.
+  _yoast_wpseo_linkdex: '56'
+  _wpas_done_all: '1'
+  _wpas_mess: Autofac - None of the constructors found can be invoked
+  _wpas_skip_5526398: '1'
+  _wpas_skip_5526404: '1'
+  _wpas_skip_6755022: '1'
+  _wpas_skip_7497947: '1'
+author:
+  login: admin
+  email: cosminconstantinlazar@gmail.com
+  display_name: Cosmin Lazar
+  first_name: Cosmin
+  last_name: Lazar
+permalink: "/netframework/autofac-none-constructors-found-can-invoked.html"
+---
+<h1>The bug</h1>
+<p>A common pattern used when working with <a href="http://autofac.org/" target="_blank">Autofac</a> (or any other IoC containers) is to register multiple implementations of an interface, then resolve them all and call a method on each implementation (e.g.: an <code>IEventHandler</code> interface that you use notify all registered handlers that something happened).</p>
+<p>Take the following example:</p>
+<p>[gist id="cacf3d0558496b8a6857" file="AutofacConstructorBug.cs"]</p>
+<p>Trying to resolve all implementors of <code>IHaveDeferredEnumerable</code> via <code>.Resolve&lt;IEnumerable&lt;IHaveDeferredEnumerable&gt;&gt;()</code> will throw</p>
+<blockquote><p>None of the constructors found with 'Autofac.Core.Activators.Reflection.DefaultConstructorFinder' on type 'Autofac.Test.Scenarios.ScannedAssembly.HasDeferredEnumerable+&lt;Get&gt;d__0' can be invoked with the available services and parameters:<br />
+Cannot resolve parameter 'Int32 &lt;&gt;1__state' of constructor 'Void .ctor(Int32)'.</p></blockquote>
+<p>However, trying to resolve a single implementation of the interface via <code>.Resolve&lt;IHaveDeferredEnumerable&gt;()</code> will work as expected. This means that <code>HasDeferredEnumerable</code> can be built independently, however for some reasons it cannot be constructed when trying to get all implementations of <code>IHaveDeferredEnumerable</code>.</p>
+<h1>The journey</h1>
+<p>Studying the error message further reveals some strange behavior, Autofac is complaining that the type <code>'Autofac.Test.Scenarios.ScannedAssembly.HasDeferredEnumerable+&lt;Get&gt;d__0'</code> cannot be resolved because of some <code>'Int32 &lt;&gt;1__state'</code> parameter required in a <code>'Void .ctor(Int32)'</code> constructor. Totally weird, as I am indirectly asking for the type <code>'Autofac.Test.Scenarios.ScannedAssembly.HasDeferredEnumerable'</code> which only has the default parameter-less constructor, weird.</p>
+<p>To be studied and understood, a problem must be first isolated, therefore, I stripped all other code doing container work and was only left with <code>IHaveDeferredEnumerable</code>, <code>HasDeferredEnumerable</code>, and the container registration <code>cb.RegisterAssemblyTypes(ScenarioAssembly).AsImplementedInterfaces();</code></p>
+<p>To get even better isolation, I changed the container registration from registering all the types found in my test assembly (<code>RegisterAssemblyTypes</code>) with <code>cb.RegisterType&lt;HasDeferredEnumerable&gt;().As&lt;IHaveDeferredEnumerable&gt;()</code>. Now everything worked as expected, I was able to get the single implementation via <code>.Resolve&lt;IHaveDeferredEnumerable&gt;()</code> and all implementations via <code>.Resolve&lt;IEnumerable&lt;IHaveDeferredEnumerable&gt;&gt;()</code>. It was now obvious that the problem occurred sometime during type registration and only when bulk registering types via the <code>RegisterAssemblyTypes</code> method.</p>
+<p>Since Autofac is an <a href="https://github.com/autofac/Autofac" target="_blank">open source project</a> I checked out the repository, wrote a failing test and step-by-step debugged my way through the type registration process. This is how I found out that a concrete implementation was discovered for <code>IEnumerable&lt;IHaveDeferredEnumerable&gt;</code>, even though there is none in my scanned assembly.</p>
+<p>Since this voodoo magic needs to be cleared out, I fired up <a href="https://www.jetbrains.com/decompiler/" target="_blank">dotPeek</a> and decompiled my assembly, to find the following:</p>
+<p>[gist id="cacf3d0558496b8a6857" file="Decompiled_HasDeferredEnumerable.cs"]</p>
+<p>My <code>HasDeferredEnumerable</code> class has been enriched with a private class, which implements <code>IEnumerable&lt;IHaveDeferredEnumerable&gt;</code> and not surprisingly requires an integer to be constructed. How did that class ended-up in there without me typing it you ask? Well, the .NET compiler does in fact changes your code and generates new types as needed. In this particular case, it was because of the deferred execution in the <code>Get()</code> method - the compiler generates a helper state machine class to handle your <a href="https://blogs.msdn.microsoft.com/oldnewthing/20080812-00/?p=21273" target="_blank">deferred execution</a>.</p>
+<h1>The fix</h1>
+<p>Fixing the issue was fairly trivial as the helper class is decorated with the <code>[CompilerGenerated]</code> attribute and it was just a matter of filtering out these compiler generated classes when running bulk type discovery. You can find the <a href="https://github.com/autofac/Autofac/pull/719" target="_blank">accepted pull request here</a> and it will probably only end-up in version 4.0.0.</p>
+<p>If you cannot wait until version 4.0.0 you can either remove the deferred execution (remove yield return/break) from the classes affected by the bug, or just make sure to manually register them into the container.</p>

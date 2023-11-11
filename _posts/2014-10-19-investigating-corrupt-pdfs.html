@@ -1,0 +1,81 @@
+---
+layout: post
+title: Investigating corrupt pdf
+date: 2014-10-19 16:00:28.000000000 +00:00
+type: post
+parent_id: '0'
+published: true
+password: ''
+status: publish
+categories:
+- ".NET"
+tags:
+- ".net"
+- everyday
+meta:
+  _edit_last: '1'
+  _publicize_facebook_user: https://www.facebook.com/lazarconstantincosmin
+  _publicize_twitter_user: "@CosminLazar"
+  _yoast_wpseo_focuskw: corrupt pft
+  _yoast_wpseo_metadesc: An investigation of the hidden pitfalls of not specifying
+    well thought File_Share permissions
+  _yoast_wpseo_linkdex: '68'
+  _wpas_done_all: '1'
+  _wpas_mess: "An investigation of the hidden pitfalls of not specifying well thought
+    File_Share permissions\r\nhttp://wp.me/p49ir3-4x"
+author:
+  login: admin
+  email: cosminconstantinlazar@gmail.com
+  display_name: Cosmin Lazar
+  first_name: Cosmin
+  last_name: Lazar
+permalink: "/netframework/investigating-corrupt-pdfs.html"
+excerpt: An investigation of the hidden pitfalls of not specifying well thought File_Share
+  permissions
+---
+<p>An interesting support ticket slammed the bug tracker today, a user was claiming some of our software is corrupting *.pdf files.</p>
+<p>To give a bit of context, the blamed software is a pickup service that collects all the *.pdf files from a given directory and, based on some business rules, dispatches them by email, afterwards it moves them to an archive directory.</p>
+<p>Initially, I was tempted to blame the antivirus software, as we previously had issues with the corporate antivirus screwing emails and other such unpleasantries. However, I decided to investigate the issue all the way, and draw the conclusions afterwards.</p>
+<p>A phone call with the user reporting the issue revealed the following:</p>
+<ul>
+<li>this has been an issue from the first day the software was deployed into production &lt;- this ruled out the possibility of being tied to a newer version of the pickup service (no need for me to check the recent commit history in git, as I won't find anything there)</li>
+<li>not all the pdf files get corrupted (only around 10%) &lt;- this means it's not a general bug in the code, but on the contrary it's a particular case (special characters maybe?)</li>
+<li>a corrupted pdf file was emailed to me</li>
+<li>full user scenario: the user opens a pdf, applies a digital signature, then saves the pdf in the directory monitored by the pickup service</li>
+</ul>
+<p>Armed with the above, I went into the code that handles the pickup and navigated all the way to the place where the attachments are being specified and the email gets sent. Nothing suspicious, everything looked fine and my senses could not detect any code smell that could lead to the attached file being corrupted.</p>
+<p>The code looks good, at this point I have no theory of what is going wrong, so I went fishing... Searched the archive directory (the place where the service places the pdfs that have been successfully processed) and managed to find the working (non corrupted) version of the pdf file which was emailed to me.</p>
+<p>Having the two files, I could now open them in a text editor and compare their contents. The textual comparison revealed only small differences at the beginning (header) and the end of the file (trailer) [<a href="http://partners.adobe.com/public/developer/tips/topic_tip31.html" target="_blank">see the pdf file structure here</a>]. While I find it normal to maybe have differences in the header, it sounds weird to have differences in the trailer. Looking more into the textual representation of the pdf, revealed the "/Name /PDF-XChange-Pro" sequence, and the fact that the last line of the working pdf file is "%%EOF", while the corrupted pdf  has "stream" as the last line in the file. My mind began the blaming game: "<em>this PDF-XChange Pro program that they use is maybe flawed and errors from time to time when it saves the pdf to the disk</em>". But it didn't made sense, if you are a software that creates/edits pdf files and you cannot save them to the disk, you should not exist at all, nor have a Pro version. Therefore, the whole idea of the PDF-XChange having a bug when persisting the pdf seemed unrealistic...</p>
+<p>Took a step back, then I realized that the pickup service runs at fixed time intervals. Every 10 seconds it will check the contents of the pickup directory and process the existing pdf files.</p>
+<p><strong><em>What if the pickup service tries to attach a pdf while PDF-XChange hasn't finished writing it to the disk? this will cause the file to look as being corrupt, and will of course cause it not to have the "%%EOF" as the last line in the file.</em></strong></p>
+<p>The theory sounds plausible and an investigation is due. So, I aimed the mighty <a href="http://technet.microsoft.com/en-us/sysinternals/bb896645.aspx" target="_blank">Process Monitor</a> at the process that serves the PDF-XChange application and tried to write a pdf file to the disk. Got the following:</p>
+<p>[caption id="attachment_286" align="aligncenter" width="1679"]<a href="http://everydaylifein.net/wp-content/uploads/2014/09/PDF-XChange-DiskActivity.png"><img class="wp-image-286 size-full" src="{{ site.baseurl }}/assets/*[D*[D*[D*[D*[D*[D*[D*[D/2014/10/PDF-XChange-DiskActivity.png" alt="PDF-XChange-DiskActivity" width="1679" height="673" /></a> PDF-XChange - Disk activity[/caption]</p>
+<p>When PDF-XChange  opens the file for writing the contents of the pdf, it opens it by specifying ShareMode: Read. This means any other process that wants to read the file while PDF-XChange writes to it, is more than welcomed to do so. Cool guy PDF-XChange, trying to make everybody happy, however, this probably causes the pickup service to read incomplete pdfs.</p>
+<p>There is only one more step left into calling this case closed, to actually check how the pdfs are being attached to emails by the pickup service, to see if any unexpected file access modes are specified there. As expected, attaching the files to the email is done by a call to File.ReadAllBytes, which specifies FileAccess.Read as access mode, which is compliant with the sharing mode specified by PDF-XChange, therefore incomplete pdfs.</p>
+<pre lang="csharp">        [System.Security.SecuritySafeCritical]  // auto-generated
+        [ResourceExposure(ResourceScope.Machine)] 
+        [ResourceConsumption(ResourceScope.Machine)]
+        public static byte[] ReadAllBytes(String path)
+        {
+            byte[] bytes; 
+            using(FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read)) {
+                // Do a blocking read 
+                int index = 0; 
+                long fileLength = fs.Length;
+                if (fileLength &gt; Int32.MaxValue) 
+                    throw new IOException(Environment.GetResourceString("IO.IO_FileTooLong2GB"));
+                int count = (int) fileLength;
+                bytes = new byte[count];
+                while(count &gt; 0) { 
+                    int n = fs.Read(bytes, index, count);
+                    if (n == 0) 
+                        __Error.EndOfFile(); 
+                    index += n;
+                    count -= n; 
+                }
+            }
+            return bytes;
+        } 
+</pre>
+<p>In conclusion, even though sometimes overlooked, attention should be paid to the FileShare parameter, as it plays a key role when it comes to sharing files with other processes, or when you want to open a file multiple times.</p>
+<p>To further clarify this issue, I will perform an analysis of the possible FileShare modes in a future post.</p>

@@ -1,0 +1,101 @@
+---
+layout: post
+title: Testing objects for equality or similarity
+date: 2014-08-02 13:54:52.000000000 +00:00
+type: post
+parent_id: '0'
+published: true
+password: ''
+status: publish
+categories:
+- ".NET"
+tags:
+- ".net"
+- unit test
+meta:
+  _edit_last: '1'
+  _publicize_facebook_user: https://www.facebook.com/lazarconstantincosmin
+  _publicize_twitter_user: "@CosminLazar"
+  _yoast_wpseo_focuskw: Testing objects for equality or similarity
+  _yoast_wpseo_metadesc: Testing objects for equality or similarity
+  _yoast_wpseo_linkdex: '71'
+  _yoast_wpseo_opengraph-description: Testing objects for equality or similarity
+  _yoast_wpseo_google-plus-description: Testing objects for equality or similarity
+  _wpas_done_all: '1'
+author:
+  login: admin
+  email: cosminconstantinlazar@gmail.com
+  display_name: Cosmin Lazar
+  first_name: Cosmin
+  last_name: Lazar
+permalink: "/netframework/testing-objects-similarity.html"
+excerpt: Testing objects for equality or similarity
+---
+<p>There are times when you need to test the equality or similarity of two objects. Most of the times you encounter this need while unit testing, when you craft some input data, call a method to do some work on it, and assert on the result.</p>
+<h2>Presenting Deep Equal <a title="https://github.com/jamesfoster/DeepEqual" href="https://github.com/jamesfoster/DeepEqual" target="_blank">https://github.com/jamesfoster/DeepEqual</a></h2>
+<p>Deep equal does exactly what it says it does, it compares objects for equality, while supporting nested objects, skipping specific properties, skipping extra properties, and being open for extensibility (via implementing its <em><strong>IComparison</strong> </em>interface).</p>
+<h2>Checking for equality</h2>
+<pre lang="csharp" escaped="true">var a = new { SomeProperty = "some property value" };
+var b = new { SomeProperty = "some property value" };
+
+var areEqual = a.IsDeepEqual(b);
+</pre>
+<p>The areEqual variable will hold true, as both a and b have only one property, and the value of that property is the same for both.</p>
+<h2>Ignoring extra properties</h2>
+<pre lang="csharp" escaped="true">var a = new { SomeProperty = "some property value"};
+var b = new{SomeProperty = "some property value", SomeOtherProperty = "some other property value"};
+var areEqual = a.IsDeepEqual(b);
+</pre>
+<p>The areEqual variable will hold false, as b has an extra property.</p>
+<p>You can configure DeepEqual to ignore extra properties by calling</p>
+<pre lang="csharp" escaped="true">a.WithDeepEqual(b).IgnoreUnmatchedProperties().Compare();</pre>
+<h2>Ignoring specific properties</h2>
+<p>Moreover, you can decide to ignore a property with one/both of the following constructs</p>
+<pre lang="csharp" escaped="true">a.WithDeepEqual(b).IgnoreSourceProperty(x =&gt; x.SomeProperty).Assert();
+a.WithDeepEqual(b).IgnoreDestinationProperty(x =&gt; x.SomeProperty).Assert();
+</pre>
+<h2>Custom comparisons</h2>
+<p>DeepEqual can be extended by implementing <strong><em>IComparison</em></strong></p>
+<p>Here's an example where case insensitive ordinal string comparison is desired for all string types.</p>
+<pre lang="csharp" escaped="true">class CustomStringComparison : IComparison
+{
+private readonly StringComparison _comparisonType;
+
+public CustomStringComparison(StringComparison comparisonType)
+{
+  _comparisonType = comparisonType;
+}
+
+public bool CanCompare(Type type1, Type type2)
+{
+  return type1 == typeof(string) &amp;&amp; type2 == typeof(string);
+}
+
+public ComparisonResult Compare(IComparisonContext context, object value1, object value2)
+{
+  var value1Str = (string)value1;
+  var value2Str = (string)value2;
+
+  if (string.Equals(value1Str, value2Str, _comparisonType))
+    return ComparisonResult.Pass;
+
+  context.AddDifference(new Difference
+  {
+    Breadcrumb = context.Breadcrumb,
+    Value1 = value1,
+    Value2 = value2
+  });
+
+  return ComparisonResult.Fail;
+  }
+}
+
+var a = new { SomeProperty = "some property value" };
+var b = new { SomeProperty = "SOME property value" };
+
+a.WithDeepEqual(b).WithCustomComparison(new CustomStringComparison(StringComparison.OrdinalIgnoreCase)).Assert();
+</pre>
+<p>In the above scenario all the string values will be piped in the <em><strong>CustomStringComparison</strong> </em>which in turn will perform the configured string comparison. However,  sometimes you may want to employ a different comparison behavior based on the actual property you are checking, for instance all the properties named "MyProperty" should be checked in a case sensitive manner, while for all the others the comparison should be case insensitive. You can achieve this by checking the <em><strong>IComparisonContext.Breadcrumb</strong></em> property, which depicts the path to the currently compared value.</p>
+<p>Moreover, if your <em><strong>IComparison</strong> </em>implementation cannot tell if two values are equal, it can just return <em><strong>ComparisonResult.Inconclusive</strong></em> and DeepEqual will continue probing the other registered <em><strong>IComparison</strong> </em>implementations (including its own).</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>

@@ -1,0 +1,152 @@
+---
+layout: post
+title: Notifications from RavenDB server
+date: 2013-12-10 23:41:48.000000000 +00:00
+type: post
+parent_id: '0'
+published: true
+password: ''
+status: publish
+categories:
+- RavenDB
+tags:
+- database
+- nosql
+- notification
+- ravendb
+- reactive extensions
+meta:
+  _yoast_wpseo_focuskw: Notifications from RavenDB
+  _yoast_wpseo_metadesc: Handling notifications from RavenDB, enabling you to react
+    to document, and index changed events, by using RavenDB changes API.
+  _yoast_wpseo_opengraph-image: http://everydaylifein.net/wp-content/uploads/2013/12/iconmonstr-javascript-code-icon-256.png
+  _yoast_wpseo_linkdex: '75'
+  _edit_last: '1'
+  _meta-content-types: a:1:{s:12:"meta-content";s:110:"[meta]Handling notifications
+    from RavenDB, enabling you to react to document, and index changed events.[/meta]";}
+  _amt_description: Handling notifications from RavenDB, enabling you to react to
+    document, and index changed events, by using RavenDB changes API. Moreover, you
+    can also learn how to use reactive extensions to handle the notifications.
+  _wpas_done_all: '1'
+  _amt_keywords: "%cats%, %tags%, indexing, document updated event, index changed,
+    ravendb changes api, document changes, ravendb data changed event"
+  _amt_title: "%title%"
+  _amt_news_keywords: ravendb, changes api, changed notification
+  _wpas_skip_5526398: '1'
+  _wpas_skip_5526404: '1'
+  _bsf_post_type: '10'
+  _bsf_event_photo: http://everydaylifein.net/wp-content/uploads/2013/12/iconmonstr-javascript-code-icon-256.png
+  _bsf_people_photo: http://everydaylifein.net/wp-content/uploads/2013/12/iconmonstr-javascript-code-icon-256.png
+  _bsf_product_image: http://everydaylifein.net/wp-content/uploads/2013/12/iconmonstr-javascript-code-icon-256.png
+  _bsf_recipes_photo: http://everydaylifein.net/wp-content/uploads/2013/12/iconmonstr-javascript-code-icon-256.png
+  _bsf_software_image: http://everydaylifein.net/wp-content/uploads/2013/12/iconmonstr-javascript-code-icon-256.png
+  _bsf_video_thumb: http://everydaylifein.net/wp-content/uploads/2013/12/iconmonstr-javascript-code-icon-256.png
+  _bsf_video_url: http://everydaylifein.net/wp-content/uploads/2013/12/iconmonstr-javascript-code-icon-256.png
+  _bsf_article_name: Notifications from RavenDB server
+  _bsf_article_author: Cosmin Lazar
+  _bsf_article_desc: 'Handling notifications from RavenDB, enabling you to react to
+    document, and index changed events, by using RavenDB changes API. Moreover, you
+    can also learn how to use reactive extensions to handle the notifications. '
+  _bsf_article_image: http://everydaylifein.net/wp-content/uploads/2013/12/iconmonstr-javascript-code-icon-256.png
+  _yoast_wpseo_opengraph-image-id: '59'
+author:
+  login: admin
+  email: cosminconstantinlazar@gmail.com
+  display_name: Cosmin Lazar
+  first_name: Cosmin
+  last_name: Lazar
+permalink: "/nosql/ravendb/notifications-from-ravendb-server.html"
+excerpt: 'Handling notifications from RavenDB, enabling you to react to document,
+  and index changed events, by using RavenDB changes API. Moreover, you can also learn
+  how to use reactive extensions to handle the notifications. '
+---
+<h2>Introduction</h2>
+<p>Nowadays, all too often we are facing the need to make data available to our clients as soon as we put our hands on it (aka stored it in the database). Depending on the used technology stack and the nature by which we get the data, this job can become harder to achieve. However, RavenDB features the Changes API, which aims at notifying you, that something has made it's way into the database (or got changed). There are several type of notifications that get pushed to you, and while their names are self-explanatory, we can talk about their usage scenarios:</p>
+<ul>
+<li><strong>ForAllDocuments</strong>
+<ul>
+<li>This is a general purpose notification, and well suited for a rather static database, that doesn't suffer frequent changes;</li>
+</ul>
+</li>
+<li><strong>ForDocumentsStartingWith</strong>
+<ul>
+<li>This can be used for general change notification of documents of a type (ex: Trades, Users, etc);</li>
+</ul>
+</li>
+<li><strong>ForDocument</strong>
+<ul>
+<li>The most fine grained document change notification - it allows you to track a single document for changes (for example: it gives you the ability to notify the current user that the document has been changed server-side, and he or she should refresh);</li>
+</ul>
+</li>
+<li><strong>ForAllIndexes</strong>
+<ul>
+<li>General purpose notification, similar to ForAllDocuments, except that the target of monitoring is the indexes and not the documents;</li>
+<li>Note! You will receive notifications only for indexes defined by you - thus, you will not get a notification for the Raven/DocumentsByEntityName index;</li>
+</ul>
+</li>
+<li><strong>ForIndex</strong>
+<ul>
+<li>The most fine grained index change notification, triggered every time an indexed document is changed;</li>
+<li>Note! If you have an index which targets documents of type People, then every time a People document get changed you will receive an index changed notification (this happens regardless if the document will end up in the index or not);</li>
+</ul>
+</li>
+<li><strong>ForBulkInsert</strong>
+<ul>
+<li>Lets you know when a bulk insert operation starts (DocumentChangeTypes.BulkInsertStarted), finishes (DocumentChangeTypes.BulkInsertEnded), or errors (DocumentChangeTypes.BulkInsertError)</li>
+</ul>
+</li>
+<li><strong>ForAllReplicationConflicts</strong>
+<ul>
+<li>Lets you know when a replication conflict happened including a payload letting you know the replication type that failed (ReplicationConflictTypes.DocumentReplicationConflict or ReplicationConflictTypes.AttachmentReplicationConflict), and the attempted operation (ReplicationOperationTypes.Put or ReplicationOperationTypes.Delete)</li>
+</ul>
+</li>
+</ul>
+<h2>Subscribe, handle, and unsubscribe</h2>
+<p>There are two ways of subscribing to these notifications, one of them is by creating a type implementing the IObserver&lt;T&gt; (where T represents the notification type published by the notification you are subscribing to):</p>
+<pre lang="csharp" escaped="true">var connectionTask = await _store.Changes().ForIndex("MyIndex").Task;
+
+connectionTask.Subscribe(new IndexChangeObserver());
+
+//IndexChangeObserver is your custom type that implements IObserver&lt;IndexChangeNotification&gt;</pre>
+<p>Or, and I recommend this approach, by adding a reference to <a title="Reactive Extensions" href="http://rx.codeplex.com/" target="_blank">Reactive Extensions</a>, and handling notifications in a Rx manner:</p>
+<pre lang="csharp" escaped="true">var connectionTask = await _store.Changes().ForIndex("MyIndex").Task;
+
+connectionTask.Subscribe(
+   notification =&gt;
+   {
+      //notification received
+   },
+   error =&gt;
+   {
+      //error happened
+   });</pre>
+<p>If you opt for using the second approach, then you can easily add more behaviour to your subscription. For instance, lets say that your database has a lot of changes, and you might not want to be notified for each change, but instead, be notified when a batch of changes finishes:</p>
+<pre lang="csharp" escaped="true">var connectionTask = await _store.Changes().ForIndex("MyIndex").Task;
+
+connectionTask
+   .Throttle(TimeSpan.FromSeconds(1))
+   .Subscribe(
+      notification =&gt;
+      { 
+         //notification received
+      },
+      error =&gt;
+      {
+         //error happened
+      });</pre>
+<p>You can see that I am using the Throttle method, this causes all the notifications to be ignored, until there is a delay of 1 second between notifications, only then, the latest notification will be received by the subscriber.</p>
+<p>Unsubscribing from the notifications follows the unsubscribing pattern from reactive extensions, and simply consists of calling Dispose on the subscription token received when subscribing:</p>
+<pre lang="csharp" escaped="true">var connectionTask = await _store.Changes().ForIndex("").Task;
+
+var subscriptionToken = connectionTask.Subscribe(notification =&gt; { });
+
+subscribeTask.Dispose(); //unsubscribing from notifications</pre>
+<p>&nbsp;</p>
+<h2>Error handling</h2>
+<p>When it comes to error handling, RavenDb makes your life easier in the following ways:</p>
+<ul>
+<li>If the server is offline when you try  to connect to it, the client will silently and infinitely continue to attempt to connect to the server</li>
+<li>If the connection between the client and the server goes down, as previously mentioned, the client will continuously attempt to reestablish the connection,<del> and the server will save the notifications which your client has missed. Therefore, when the connection is reestablished, the client will receive all the notifications that has missed while the connection was lost. An important note here, is that the server will only hold your missed notifications for about a minute, after that it will discard them, therefore, you have about a minute to get back in touch, and you wont miss anything</del>, even though Ayende talks about this behavior in a <a title="blog post" href="http://ayende.com/blog/157281/ravendb-changes-api-on-the-wire" target="_blank">blog post</a>, I think that post is obsolete, as I wasn't able to reproduce this behavior, nor do I see anything in the ravendb codebase that would achieve that. After further investigation, I found out that it was removed in <a title="this commit" href="https://github.com/ravendb/ravendb/commit/747fa0bc28983368c3cc7ac8ecd7df089445ab22" target="_blank">this commit</a>, due to <a title="this issue" href="http://issues.hibernatingrhinos.com/issue/RavenDB-1274" target="_blank">this issue</a>.</li>
+</ul>
+<p>&nbsp;</p>
+<p>All in all, changes API is a neat feature of RavenDB, that can make some tasks incredibly easy to achieve. However, care must be taken when using it, as the client might miss server side events. This can be easily translated to: <strong>do not</strong> use this feature to implement your own caching - RavenDB already has several caches in place - there is no need for you to roll out your own.</p>

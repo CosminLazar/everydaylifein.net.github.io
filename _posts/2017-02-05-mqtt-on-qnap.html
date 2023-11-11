@@ -1,0 +1,49 @@
+---
+layout: post
+title: MQTT on QNAP via Moquette
+date: 2017-02-05 13:42:22.000000000 +00:00
+type: post
+parent_id: '0'
+published: true
+password: ''
+status: publish
+categories:
+- IoT
+tags:
+- iot
+- MQTT
+- QNAP
+meta:
+  _edit_last: '1'
+  _yoast_wpseo_primary_category: '55'
+  _publicize_twitter_user: "@CosminLazar"
+  _yoast_wpseo_focuskw_text_input: MQTT QNAP
+  _yoast_wpseo_focuskw: MQTT QNAP
+  _yoast_wpseo_linkdex: '56'
+  _yoast_wpseo_content_score: '30'
+  _wpas_done_all: '1'
+author:
+  login: admin
+  email: cosminconstantinlazar@gmail.com
+  display_name: Cosmin Lazar
+  first_name: Cosmin
+  last_name: Lazar
+permalink: "/iot/mqtt-on-qnap.html"
+---
+<p>Message Queuing Telemetry Transport (MQTT) is a lightweight pub/sub messaging protocol designed for minimal bandwidth and device resource requirements. This makes it ideal for IoT projects, where you generally have limited processing power and memory space (<a href="http://mqtt.org/" target="_blank">read more about MQTT</a>).</p>
+<p>There are several MQTT broker/server implementations out there (<a href="https://github.com/mqtt/mqtt.github.io/wiki/servers" target="_blank">hopefully exhaustive list</a>), however most of then cannot be ran on my QNAP TS221 Network Attached Storage because it uses a custom version of Linux and it is run by an ARM processor.</p>
+<p>On the other hand, <a href="https://github.com/andsel/moquette" target="_blank">Moquette</a> is a MQTT broker written in Java, so I gave it a try.</p>
+<ol>
+<li>Install the Java Runtime Environment for ARM - for some reason I could not find it in the App Center, so I had to download the package from <a href="https://www.qnap.com/i/in/app_center/con_show.php?op=showone&amp;internalName=JRE_ARM&amp;version=8.65.0&amp;down_1_name=TS-NASARM&amp;jump_win=1" target="_blank">here</a> (dead link) and install it via the Install Manually button.</li>
+<li>SSH into the QNAP (<a href="http://wiki.qnap.com/wiki/How_to_SSH_into_your_QNAP_device" target="_blank">guide</a>)</li>
+<li>Follow the steps listed in the Moquette <a href="https://github.com/andsel/moquette" target="_blank">repo</a>
+<ol>
+<li>wget https://bintray.com/artifact/download/andsel/generic/distribution-0.8-bundle-tar.tar.gz --no-check-certificate</li>
+<li>tar xvfz distribution-0.8-bundle-tar.tar.gz</li>
+<li>By default Moquette uses port 8080 for WebSocket which is also used by the QNAP administration interface, so I changed the Moquette port to 9090 by navigating to /config and setting websocket_port to 9090 in moquette.conf</li>
+<li>navigate to /bin and run moquette.sh</li>
+</ol>
+</li>
+<li>By now you should have a working MQTT broker, you can test it with <a href="http://mitsuruog.github.io/what-mqtt/" target="_blank">this online tool</a>.</li>
+<li>Optionally you can configure your moquette.sh to be run at startup</li>
+</ol>

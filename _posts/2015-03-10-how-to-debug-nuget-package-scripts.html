@@ -1,0 +1,58 @@
+---
+layout: post
+title: How to debug NuGet package scripts
+date: 2015-03-10 17:21:17.000000000 +00:00
+type: post
+parent_id: '0'
+published: true
+password: ''
+status: publish
+categories:
+- ".NET"
+tags:
+- debug
+- nuget
+- Visual Studio
+meta:
+  _edit_last: '1'
+  _publicize_facebook_user: https://www.facebook.com/lazarconstantincosmin
+  _publicize_twitter_user: "@CosminLazar"
+  _yoast_wpseo_focuskw: debug NuGet script
+  _yoast_wpseo_metadesc: How to debug NuGet package scripts (Init.ps1, Install.ps1,
+    Uninstall.ps1)
+  _wpas_mess: How to debug NuGet package scripts http://wp.me/p49ir3-5I
+  _yoast_wpseo_linkdex: '65'
+  _wpas_done_all: '1'
+author:
+  login: admin
+  email: cosminconstantinlazar@gmail.com
+  display_name: Cosmin Lazar
+  first_name: Cosmin
+  last_name: Lazar
+permalink: "/netframework/how-to-debug-nuget-package-scripts.html"
+---
+<p>You can step by step debug your <em><strong>Init.ps1</strong></em>, <em><strong>Install.ps1</strong></em>, or <em><strong>Uninstall.ps1</strong></em> using <a href="https://www.nuget.org/packages/NuGetDebugTools/" target="_blank"><strong>NuGetDebugTools</strong></a>. It won't be the best debugging experience you'll ever have in your life, but it will surely get the job done!</p>
+<p>At first you need to open the Package Manager Console in Visual Studio and:</p>
+<ol>
+<li>install the <em><strong>NuGetDebugTools</strong> </em>package</li>
+<li>add the debugger</li>
+<li>set breakpoints for the scripts  you want to debug</li>
+</ol>
+<p>[gist id=af008b4da93da643d4ae file=InstallNuGetDebugTools.ps1]</p>
+<p>Now you're all set and you can begin installing your own package. Depending on which breakpoints you've set with the Set-PSBreakpoint command, when a break point gets hit you will be prompted with a dialog. This is where you will be entering your commands debugging commands (e.g. <em><strong>s</strong></em> for step into, <em><strong>v</strong></em> for step over)</p>
+<p>&nbsp;</p>
+<p>[caption id="attachment_355" align="aligncenter" width="300"]<a href="http://everydaylifein.net/wp-content/uploads/2015/02/NuGetDebugTools_cmdprompt.png"><img class="wp-image-355 size-medium" src="{{ site.baseurl }}/assets/*[D*[D*[D*[D*[D*[D*[D*[D/2015/03/NuGetDebugTools_cmdprompt-300x131.png" alt="NuGetDebugTools_cmdprompt" width="300" height="131" /></a> Dialog for entering debugging commands[/caption]</p>
+<p>The basic commands that you can enter are</p>
+<ul>
+<li><em><strong>s</strong></em> - StepInto (<em>Step to the next statement into functions, scripts, etc</em>)</li>
+<li><em><strong>v</strong></em> - StepOver (<em>Step to the next statement over functions, scripts, etc</em>)</li>
+<li><em><strong>o</strong></em> - StepOut <em>(Step out of the current function, script, etc)</em></li>
+<li><em><strong>c</strong></em> - Continue (<em>Continue operation, also on Cancel or empty</em>)</li>
+<li><em><strong>q</strong></em> - Quit (<em>Stop operation and exit the debugger</em>)</li>
+<li><em><strong>?, h</strong></em> - Help (<em>Write this help message</em>)</li>
+<li><em><strong>k</strong></em> - CallStack (<em>Write call stack, aka Get-PSCallStack</em>)</li>
+<li><em><strong>K</strong></em> - CallStackDetailed (<em>Write detailed call stack using Format-List</em>)</li>
+</ul>
+<p>And you will be receiving feedback and additional information in the Package Manager Console</p>
+<p><a href="http://everydaylifein.net/wp-content/uploads/2015/02/NuGetDebugTools_output.png"><img class="aligncenter wp-image-356 size-full" src="{{ site.baseurl }}/assets/*[D*[D*[D*[D*[D*[D*[D*[D/2015/03/NuGetDebugTools_output.png" alt="NuGetDebugTools_output" width="912" height="161" /></a><br />
+You can find an exhaustive list of commands and more detailed information on the <a href="https://github.com/nightroman/PowerShelf/tree/master/Pack/NuGetDebugTools" target="_blank">NuGetDebugTools github page</a></p>

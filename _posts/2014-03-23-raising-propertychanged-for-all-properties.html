@@ -1,0 +1,78 @@
+---
+layout: post
+title: Raising PropertyChanged for all properties
+date: 2014-03-23 18:55:58.000000000 +00:00
+type: post
+parent_id: '0'
+published: true
+password: ''
+status: publish
+categories:
+- Did you know?
+tags:
+- INotifyPropertyChanged
+- PropertyChanged
+- WPF
+meta:
+  _yoast_wpseo_focuskw: propertychanged for all properties
+  _yoast_wpseo_metadesc: How to raise PropertyChanged event for all properties, or
+    for individual properties of a class
+  _wpas_mess: Raising PropertyChanged for all properties http://wp.me/p49ir3-29
+  _yoast_wpseo_linkdex: '69'
+  _edit_last: '1'
+  _wpas_done_all: '1'
+  _wpas_skip_5526398: '1'
+  _wpas_skip_5526404: '1'
+  _wpas_skip_6755022: '1'
+  _yoast_wpseo_opengraph-description: How to raise PropertyChanged event for all properties,
+    or for individual properties of a class
+  _yoast_wpseo_google-plus-description: How to raise PropertyChanged event for all
+    properties, or for individual properties of a class
+author:
+  login: admin
+  email: cosminconstantinlazar@gmail.com
+  display_name: Cosmin Lazar
+  first_name: Cosmin
+  last_name: Lazar
+permalink: "/did-you-know/raising-propertychanged-for-all-properties.html"
+---
+<p style="text-align: justify;">When working with WPF (<a title="Windows Presentation Foundation" href="http://msdn.microsoft.com/en-us/library/ms754130(v=vs.110).aspx" target="_blank">Windows Presentation Foundation</a>) you will often face the need to update the user interface based on some changes that took place in your view model. This is most of the time achieved by implementing the <em><a title="INotifyPropertyChanged" href="http://msdn.microsoft.com/en-us/library/System.ComponentModel.INotifyPropertyChanged(v=vs.110).aspx" target="_blank">INotifyPropertyChanged</a></em> interface and raising the <em>PropertyChanged</em> event every time your data-bound properties change their value.</p>
+<p style="text-align: justify;">You are most likely to find code that looks something like this:</p>
+<pre lang="csharp" escaped="true">public class PersonViewModel : INotifyPropertyChanged
+{
+   public event PropertyChangedEventHandler PropertyChanged;
+
+   private string _firstName;
+   public string FirstName
+   {
+      get { return _firstName; }
+      set
+          {
+            _firstName = value;
+
+            if (PropertyChanged != null)
+               PropertyChanged(this, new PropertyChangedEventArgs("FirstName"));
+           }
+   }
+}</pre>
+<p><em>Note: there are nicer ways of achieving this, but they fall out of the scope of this post.</em></p>
+<p style="text-align: justify;">Depending on your scenario, the above pattern can become less elegant if most of the properties of your view model change at once. In this case, polluting the view model with code that raises the <em>PropertyChanged</em> event for each property is undesirable, and a better way to notify that all properties have changed their value is needed. This is the case when you can use <a title="a documented obscurity" href="http://msdn.microsoft.com/en-us/library/system.componentmodel.inotifypropertychanged.propertychanged(v=vs.110).aspx" target="_blank">a documented obscurity</a> of WPF: raising the <em>PropertyChanged</em> event and supplying <em>null</em> or <em>string.Empty</em> for the <em>propertyName</em> constructor parameter of <em>PropertyChangedEventArgs</em>.</p>
+<pre lang="csharp" escaped="true">private void NotifyAllPropertiesHaveChanged()
+{
+   if (PropertyChanged != null)
+      PropertyChanged(this, new PropertyChangedEventArgs(null));
+}</pre>
+<p style="text-align: justify;">The readability of the above code sample is <del><strong>astonishing</strong></del>, what on earth <em>new PropertyChangedEventArgs(null)</em> is supposed to mean? When code reviewing such code, my "bug-detecting" sensors would go wild (<em>ArgumentNullException</em>, <em>NullReferenceException</em>, etc), however, luckily the whole thing is wrapped around a <em>NotifyAllPropertiesHaveChanged</em> method, which would help calm things down a bit, but it would still fall short in convincing a non-believer that the above implementation is finished, or it is just a stub.</p>
+<p style="text-align: justify;">A nicer implementation would be to create a new class <em>AllPropertiesChangedEventArgs  </em>that inherits the <em>PropertyChangedEventArgs</em> class.</p>
+<pre lang="csharp" escaped="true">public class AllPropertiesChangedEventArgs : PropertyChangedEventArgs
+{
+   public AllPropertiesChangedEventArgs()
+      : base(null)
+   { }
+}</pre>
+<p style="text-align: justify;">The new class will isolate the obscure way of raising the PropertyChanged event, and will also make the code more readable and explicit.</p>
+<pre lang="csharp" escaped="true">public void NotifyAllPropertiesHaveChanged()
+{
+   if (PropertyChanged != null)
+         PropertyChanged(this, new AllPropertiesChangedEventArgs());
+}</pre>
