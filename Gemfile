@@ -41,6 +41,6 @@ gem "open_uri_redirections"
 gem "safe_yaml"
 gem "jekyll-import"
 #github gists
-gem 'jekyll-gist'
+#gem 'jekyll-gist'
 #caption on images
-gem "jekyll-figure"
+#gem "jekyll-figure"
