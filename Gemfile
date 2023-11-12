@@ -40,3 +40,5 @@ gem "safe_yaml"
 gem "jekyll-import"
 #github gists
 gem 'jekyll-gist'
+#caption on images
+gem "jekyll-figure"
